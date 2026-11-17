@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M57 Rukan Townhouse Tour</title>
+<style>
+:root{--bg:#f4f3f0;--ink:#22262a;--muted:#6a7178;--panel:#ffffff;--line:#d9d6cf;--accent:#8a5a2b;--accent-ink:#ffffff}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
+header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--panel)}
+h1{font-size:1.05rem;margin:0;font-weight:700}
+.floors{display:flex;gap:6px;margin-left:auto}
+.floors button{font:600 .85rem inherit;font-family:inherit;padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--ink);min-height:40px}
+.floors button[aria-pressed=true]{background:#2f3439;border-color:#2f3439;color:#fff}
+.floors button:disabled{color:var(--muted);opacity:.7}
+main{display:flex;flex-direction:column;align-items:center;padding:10px 10px 20px}
+.hint{font-size:.85rem;color:var(--muted);margin:2px 0 10px;text-align:center}
+.plan{position:relative;display:inline-block;line-height:0;border-radius:14px;overflow:hidden;background:#fff;box-shadow:0 2px 14px rgba(0,0,0,.08)}
+.plan img{display:block;width:auto;height:auto;max-width:100%;max-height:calc(100vh - 130px);max-height:calc(100dvh - 130px)}
+.spot{position:absolute;border:0;padding:0;margin:0;background:transparent;cursor:pointer;border-radius:10px;display:flex;align-items:center;justify-content:center;line-height:1.2;transition:background .15s, box-shadow .15s}
+.spot span{font:600 clamp(.62rem,1.9vmin,.86rem) system-ui,sans-serif;color:#fff;background:rgba(30,32,36,.78);padding:.35em .7em;border-radius:999px;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.25)}
+.spot:hover,.spot:focus-visible{background:rgba(138,90,43,.18);box-shadow:inset 0 0 0 2px var(--accent);outline:none}
+.spot:hover span,.spot:focus-visible span{background:var(--accent)}
+.start{box-shadow:0 3px 10px rgba(138,90,43,.35);margin-top:14px;font:600 .95rem inherit;font-family:inherit;padding:12px 22px;border-radius:999px;border:0;background:var(--accent);color:var(--accent-ink);cursor:pointer;min-height:44px}
+
+/* viewer */
+#viewer{position:fixed;inset:0;background:#101214;color:#f2f2f2;display:flex;flex-direction:column;z-index:10;opacity:0;visibility:hidden;transition:opacity .35s,visibility 0s .35s}
+#viewer.open{opacity:1;visibility:visible;transition:opacity .35s}
+.inner{position:relative;transform-origin:0 0;transition:transform .75s cubic-bezier(.5,0,.2,1)}
+.spot span{transition:opacity .25s}
+.plan.zoomed .spot span{opacity:0}
+@media (prefers-reduced-motion:reduce){.inner,#viewer,#viewer.open{transition:none}}
+.vtop{display:flex;align-items:center;gap:10px;padding:10px 12px}
+.vtitle{font-weight:700;font-size:1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.vcount{white-space:nowrap}
+.vbtn{white-space:nowrap}
+@media (max-width:440px){.vwat{display:none}.vwa{padding:0 11px}}
+.vcount{color:#aab0b6;font-size:.85rem}
+.vtop .sp{flex:1}
+.vbtn{font:600 .88rem system-ui,sans-serif;color:#f2f2f2;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:999px;padding:9px 14px;cursor:pointer;min-height:42px}
+.vbtn:focus-visible{outline:3px solid #e2b27c;outline-offset:2px}
+.stage{flex:1;min-height:0;position:relative;display:flex;align-items:center;justify-content:center;touch-action:pan-y;user-select:none}
+.stage img{max-width:100%;max-height:100%;object-fit:contain;display:block}
+.arrow{position:absolute;top:50%;transform:translateY(-50%);width:46px;height:64px;border-radius:12px;border:0;background:rgba(0,0,0,.45);color:#fff;font-size:1.6rem;cursor:pointer}
+.arrow.l{left:8px}.arrow.r{right:8px}
+.vbot{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px max(12px,env(safe-area-inset-bottom))}
+.dots{display:flex;gap:6px}
+.dots i{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.3)}
+.dots i.on{background:#e2b27c}
+.spot.soon span{background:rgba(30,32,36,.5)}
+.spot.pano span::after{content:' 360°';font-weight:700;color:#f3cf9f}
+.stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+.stage canvas:active{cursor:grabbing}
+.stage.is360{touch-action:none}
+.panohint{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);font-size:.82rem;color:#d8dde1;background:rgba(0,0,0,.5);padding:6px 12px;border-radius:999px;pointer-events:none;transition:opacity .6s}
+[hidden]{display:none!important}
+main{padding-bottom:28px}
+.fab{position:fixed;right:16px;bottom:max(16px,env(safe-area-inset-bottom));z-index:12;display:flex;align-items:center;height:56px;min-width:56px;padding:0 16px;border-radius:999px;background:#1f8f4e;color:#fff;text-decoration:none;box-shadow:0 4px 14px rgba(0,0,0,.25);font:700 .95rem system-ui,sans-serif;overflow:hidden;transition:bottom .3s}
+.fab svg{width:26px;height:26px;flex:none;margin-left:-1px}
+.fabt{max-width:0;opacity:0;white-space:nowrap;overflow:hidden;transition:max-width .3s,opacity .2s,margin .3s}
+.fab:hover .fabt,.fab:focus-visible .fabt{max-width:180px;opacity:1;margin-left:10px}
+.fab:focus-visible{outline:3px solid #e2b27c;outline-offset:3px}
+body.viewing .fab{bottom:calc(max(12px,env(safe-area-inset-bottom)) + 62px)}
+/* big screens: title, 2D plan and floor buttons float on the left, no top bar */
+header .start2{display:none}
+@media (min-width:900px){
+  header .start2{display:block;order:9;margin-top:6px;text-align:center;padding-left:0}
+  main .start{display:none}
+  header{position:fixed;top:20px;left:20px;z-index:4;flex-direction:column;align-items:stretch;gap:10px;width:210px;padding:0;background:transparent;border:0}
+  header h1{font-size:1.3rem;line-height:1.25;margin-bottom:6px}
+  .floors{flex-direction:column;margin-left:0;gap:8px}
+  header button{width:100%;text-align:left;padding-left:16px}
+  main{padding:20px 20px 28px 250px}
+  .plan img{max-height:calc(100vh - 120px);max-height:calc(100dvh - 120px)}
+}
+.cta{position:fixed;left:0;right:0;bottom:0;z-index:5;display:flex;gap:8px;justify-content:center;padding:10px 12px max(12px,env(safe-area-inset-bottom));background:rgba(244,243,240,.94);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-top:1px solid var(--line)}
+.cta a{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:0 10px;border-radius:999px;font:700 .9rem system-ui,sans-serif;white-space:nowrap;text-decoration:none;flex:1;max-width:260px}
+.cta .wa{background:#1f8f4e;color:#fff}
+.cta .wa2{background:#fff;color:#1f6f40;border:1.5px solid #1f8f4e}
+.cta a:focus-visible,.vwa:focus-visible{outline:3px solid #e2b27c;outline-offset:2px}
+.cta svg,.vwa svg{width:20px;height:20px;flex:none}
+.vwa{display:inline-flex;align-items:center;gap:6px;min-height:42px;padding:0 14px;border-radius:999px;background:#1f8f4e;color:#fff;font:600 .88rem system-ui,sans-serif;text-decoration:none}
+.spot.go span{background:var(--accent)}
+.planbtn{font:600 .85rem inherit;font-family:inherit;padding:8px 14px;border-radius:999px;border:1px solid var(--accent);background:var(--panel);color:var(--accent);min-height:40px;cursor:pointer}
+#plan2d{position:fixed;inset:0;z-index:15;background:rgba(16,18,20,.92);display:flex;flex-direction:column;opacity:0;visibility:hidden;transition:opacity .3s,visibility 0s .3s}
+#plan2d.open{opacity:1;visibility:visible;transition:opacity .3s}
+#plan2d .ptop{display:flex;align-items:center;gap:8px;padding:10px 12px;flex-wrap:wrap}
+#plan2d .ptitle{color:#f2f2f2;font-weight:700;margin-right:auto}
+#plan2d .ptab{font:600 .85rem system-ui,sans-serif;padding:8px 14px;border-radius:999px;border:1px solid rgba(255,255,255,.25);background:transparent;color:#f2f2f2;min-height:40px;cursor:pointer}
+#plan2d .ptab[aria-pressed=true]{background:#f2f2f2;color:#22262a}
+#plan2d .pbody{flex:1;min-height:0;overflow:auto;display:flex;align-items:flex-start;justify-content:center;padding:0 12px 16px}
+#plan2d img{max-width:100%;max-height:100%;object-fit:contain;background:#fff;border-radius:10px}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#22262a;color:#fff;padding:10px 16px;border-radius:999px;font-size:.88rem;opacity:0;transition:opacity .3s;pointer-events:none;z-index:20}
+.toast.show{opacity:1}
+
+/* labels: 70% transparent by default, solid on hover/focus */
+.spot span{opacity:.5;font-weight:500}
+.spot:hover span,.spot:focus-visible span{opacity:1;font-weight:600}
+.plan.zoomed .spot span{opacity:0}
+.spot span{background:rgba(30,32,36,.32);box-shadow:none;text-shadow:0 1px 2px rgba(0,0,0,.6);transition:background .15s,opacity .25s}
+.spot.go span{background:rgba(138,90,43,.45)}
+.spot.soon span{background:rgba(30,32,36,.22)}
+.spot:hover,.spot:focus-visible{background:rgba(138,90,43,.12)}
+.spot:hover span,.spot:focus-visible span{background:var(--accent);text-shadow:none;box-shadow:0 1px 4px rgba(0,0,0,.25)}
+</style>
+</head>
+<body>
+<header>
+  <h1>M57 Rukan Townhouse Tour</h1>
+  <button class="start start2" id="start2">▶ Start the tour</button>
+  <button class="planbtn" id="open2d">2D plan</button>
+  <div class="floors" role="group" aria-label="Floor">
+    <button id="fgf" aria-pressed="true">Ground floor</button>
+    <button id="fff" aria-pressed="false">First floor</button>
+  </div>
+</header>
+<main>
+  <p class="hint">Tap a room to see it</p>
+  <div class="plan" id="plan"><div class="inner" id="inner">
+    <img id="planimg" src="img/gf3d.jpg" alt="3D layout of the ground floor" width="1792" height="2400">
+  </div></div>
+  <button class="start" id="start">▶ Start the tour</button>
+</main>
+
+<div id="viewer" role="dialog" aria-modal="true" aria-label="Room view">
+  <div class="vtop">
+    <span class="vtitle" id="vtitle"></span><span class="vcount" id="vcount"></span>
+    <span class="sp"></span>
+    <button class="vbtn" id="vclose" aria-label="Back to layout">✕ Layout</button>
+  </div>
+  <div class="stage" id="stage">
+    <img id="vimg" alt="">
+    <canvas id="gl" hidden aria-label="360 degree view, drag to look around"></canvas>
+    <div class="panohint" id="panohint" hidden>Drag to look around · pinch or scroll to zoom</div>
+    <button class="arrow l" id="pl" aria-label="Previous photo">‹</button>
+    <button class="arrow r" id="pr" aria-label="Next photo">›</button>
+  </div>
+  <div class="vbot">
+    <button class="vbtn" id="rprev"></button>
+    <div class="dots" id="dots"></div>
+    <button class="vbtn" id="rnext"></button>
+  </div>
+</div>
+<div class="toast" id="toast" role="status"></div>
+<a class="fab" id="fab" href="https://wa.me/971581784948?text=Hi%2C%20I%20saw%20the%20M57%20Rukan%20townhouse%20virtual%20tour%20and%20would%20like%20to%20schedule%20a%20viewing." target="_blank" rel="noopener" aria-label="Schedule a viewing on WhatsApp"><svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.1l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.3-.4.7-1.4.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.4.8 3.2.6.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.2-1.2l-.4-.3z"/></svg><span class="fabt">Schedule Viewing</span></a>
+<div id="plan2d" role="dialog" aria-modal="true" aria-label="2D floor plan">
+  <div class="ptop">
+    <span class="ptitle">2D floor plan</span>
+    <button class="ptab" id="p2gf" aria-pressed="true">Ground floor</button>
+    <button class="ptab" id="p2ff" aria-pressed="false">First floor</button>
+    <button class="vbtn" id="p2close">Close</button>
+  </div>
+  <div class="pbody"><img id="p2img" src="img/plan-gf.jpg" alt="2D floor plan of the ground floor"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+const FLOORS={
+  gf:{img:'img/gf3d.jpg',alt:'3D layout of the ground floor'},
+  ff:{img:'img/ff3d.jpg',alt:'3D layout of the first floor'}
+};
+// Rooms in walking order. box = [left, top, width, height] in % of that floor's layout image.
+// photos: list of photo files; pano: a 360 image (yaw = starting direction); neither = photos coming soon.
+const ROOMS=[
+  {floor:'gf',name:'Front yard',box:[11.5,72.3,78.5,19.5],photos:['yard-1','yard-2']},
+  {floor:'gf',name:'Living area',box:[54.5,47.5,32.5,23],photos:['living-1','living-2']},
+  {floor:'gf',name:'Dining area',box:[20,51,21.5,18.5],photos:['dining','dining-kitchen']},
+  {floor:'gf',name:'Kitchen',box:[19.7,26.7,25,23.5],photos:['kitchen','kitchen-2']},
+  {floor:'gf',name:'Guest toilet',box:[54.5,26.7,20,9],photos:['guest-toilet']},
+  {floor:'gf',name:'Maid room',box:[41,19.5,22,7],photos:['maid-room']},
+  {floor:'gf',name:'Maid toilet',box:[18.2,6.8,21,18.7],photos:['maid-toilet']},
+  {floor:'gf',name:'Going up ↑',box:[75,20,9,11],stairs:true},
+  {floor:'gf',name:'Stairs',box:[75,31.5,9,15],photos:['stairs']},
+  {floor:'ff',name:'Landing',box:[38,10.4,12.5,16.5],photos:['ff-landing']},
+  {floor:'ff',name:'Going down ↓',box:[51,10.4,36,11.5],stairs:true},
+  {floor:'ff',name:'Bathroom',box:[12.4,6.8,24.2,14.4],photos:['ff-bath']},
+  {floor:'ff',name:'Bedroom',box:[9,34.3,41.5,36],pano:'kids-360',yaw:179,photos:['ff-kids-1','ff-kids-2']},
+  {floor:'ff',name:'Master bedroom',box:[52,45,41,15.5],pano:'master-360',yaw:272,seam:true,photos:['ff-master-1','ff-master-2','ff-master-3']},
+  {floor:'ff',name:'En-suite',box:[65.7,23,27,18.8],photos:['ff-ensuite-1','ff-ensuite-2']},
+  {floor:'ff',name:'Balcony',box:[53,72,41,10.6],pano:'master-360',yaw:272,label:'Balcony (from the master bedroom)',seam:true}
+];
+const $=id=>document.getElementById(id);
+const plan=$('plan'),inner=$('inner'),planimg=$('planimg'),viewer=$('viewer'),vimg=$('vimg');
+const has=r=>r.photos||r.pano;
+const items=r=>(r.pano?[{pano:r.pano}]:[]).concat((r.photos||[]).map(f=>({photo:f})));
+const TOUR=ROOMS.map((r,i)=>i).filter(i=>has(ROOMS[i]));   // walking order, rooms with content
+let floor='gf',ri=0,pi=0,busy=false;
+
+// ---------- floor plan ----------
+function setFloor(f,cb){
+  if(f===floor){cb&&cb();return;}
+  floor=f;zoomOut();
+  $('fgf').setAttribute('aria-pressed',f==='gf');$('fff').setAttribute('aria-pressed',f==='ff');
+  planimg.alt=FLOORS[f].alt;
+  const done=()=>{buildSpots();cb&&cb();};
+  planimg.onload=()=>{planimg.onload=null;done();};
+  planimg.src=FLOORS[f].img;
+  if(planimg.complete&&planimg.naturalWidth){planimg.onload=null;done();}
+}
+function buildSpots(){
+  inner.querySelectorAll('.spot').forEach(b=>b.remove());
+  ROOMS.forEach((r,i)=>{
+    if(r.floor!==floor)return;
+    const b=document.createElement('button');
+    b.className='spot'+(has(r)||r.stairs?'':' soon')+(r.pano?' pano':'')+(r.stairs?' go':'');
+    b.setAttribute('aria-label',(r.stairs?(r.floor==='gf'?'Go up to the first floor':'Go down to the ground floor'):r.name)+(r.pano?', 360 view':'')+(has(r)||r.stairs?'':', photos coming soon'));
+    b.style.cssText=`left:${r.box[0]}%;top:${r.box[1]}%;width:${r.box[2]}%;height:${r.box[3]}%`;
+    b.innerHTML='<span>'+r.name+'</span>';
+    b.onclick=()=>{
+      if(r.stairs){setFloor(floor==='gf'?'ff':'gf');return;}
+      if(!has(r)){toast(r.name+': photos coming soon');return;}
+      open(i,0);
+    };
+    inner.appendChild(b);
+  });
+}
+let tt;function toast(t){const e=$('toast');e.textContent=t;e.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>e.classList.remove('show'),1800);}
+
+// ---------- fly-in ----------
+const T=matchMedia('(prefers-reduced-motion:reduce)').matches?0:750;
+function isOpen(){return viewer.classList.contains('open');}
+function zoomTo(i){
+  const r=ROOMS[i].box,W=inner.offsetWidth,H=inner.offsetHeight;
+  const sc=Math.min(3.2,0.85*Math.min(100/r[2],100/r[3]));
+  const cx=(r[0]+r[2]/2)/100*W,cy=(r[1]+r[3]/2)/100*H;
+  const tx=Math.min(0,Math.max(W-W*sc,W/2-cx*sc)),ty=Math.min(0,Math.max(H-H*sc,H/2-cy*sc));
+  inner.style.transform='translate('+tx+'px,'+ty+'px) scale('+sc+')';
+  plan.classList.add('zoomed');
+}
+function zoomOut(){inner.style.transform='';plan.classList.remove('zoomed');}
+function fly(r,p){
+  if(busy)return;busy=true;
+  const wasOpen=isOpen();
+  const go=()=>{ri=r;pi=p;show();
+    setTimeout(()=>{zoomTo(r);setTimeout(()=>{viewer.classList.add('open');document.body.classList.add('viewing');$('vclose').focus();busy=false;},T+80);},wasOpen&&T?300:0);};
+  if(wasOpen)viewer.classList.remove('open');
+  plan.scrollIntoView({block:'center'});
+  if(ROOMS[r].floor!==floor){setTimeout(()=>setFloor(ROOMS[r].floor,go),wasOpen&&T?300:0);} else go();
+}
+function open(r,p){fly(r,p);}
+function close(){document.body.classList.remove('viewing');viewer.classList.remove('open');zoomOut();pano.stop();}
+
+// ---------- viewer ----------
+function short(n){return n.replace(' (from the master bedroom)','');}
+function show(){
+  const r=ROOMS[ri],k=TOUR.indexOf(ri),its=items(r),n=its.length,it=its[pi];
+  $('vtitle').textContent=r.label||r.name;
+  $('vcount').textContent=it.pano?(n>1?'360° · 1 / '+n:'360°'):(n>1?(pi+1)+' / '+n:'');
+  $('pl').hidden=$('pr').hidden=n<2;
+  $('dots').innerHTML=n>1?its.map((_,j)=>'<i class="'+(j===pi?'on':'')+'"></i>').join(''):'';
+  const p=ROOMS[TOUR[(k-1+TOUR.length)%TOUR.length]],q=ROOMS[TOUR[(k+1)%TOUR.length]];
+  $('rprev').textContent='‹ '+(p.floor!==r.floor?(p.floor==='ff'?'Upstairs: ':'Downstairs: '):'')+short(p.name);
+  $('rnext').textContent=(q.floor!==r.floor?(q.floor==='ff'?'Upstairs: ':'Downstairs: '):'')+short(q.name)+' ›';
+  if(it.pano){vimg.hidden=true;$('stage').classList.add('is360');pano.show(r);}
+  else{pano.stop();$('stage').classList.remove('is360');vimg.hidden=false;vimg.src='img/'+it.photo+'.jpg';vimg.alt=r.name+', photo '+(pi+1);}
+}
+function photo(d){const r=ROOMS[ri],n=items(r).length;
+  if(pi+d>=n){room(1);return;}
+  if(pi+d<0){const q=TOUR[(TOUR.indexOf(ri)-1+TOUR.length)%TOUR.length];fly(q,items(ROOMS[q]).length-1);return;}
+  pi+=d;show();}
+function room(d){const k=TOUR.indexOf(ri);fly(TOUR[(k+d+TOUR.length)%TOUR.length],0);}
+
+// ---------- 360 viewer ----------
+const pano=(function(){
+  const canvas=$('gl');let R=null,scene,cam,mat,tex={},cur=null,yaw=0,pitch=-5,fov=80,raf=0,running=false;
+  function init(){
+    if(R)return true;
+    try{R=new THREE.WebGLRenderer({canvas,antialias:true});}catch(e){return false;}
+    R.setPixelRatio(Math.min(devicePixelRatio||1,2));
+    scene=new THREE.Scene();cam=new THREE.PerspectiveCamera(fov,1,0.1,100);
+    mat=new THREE.ShaderMaterial({side:THREE.BackSide,depthWrite:false,
+      uniforms:{map:{value:null},fix:{value:null},seam:{value:0}},
+      vertexShader:'varying vec3 vD;void main(){vD=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
+      fragmentShader:[
+      'uniform sampler2D map;uniform sampler2D fix;uniform float seam;varying vec3 vD;',
+      'const float PI=3.14159265359;',
+      'void main(){',
+      ' vec3 d=normalize(vD);',
+      ' float u=fract(atan(d.x,-d.z)/(2.0*PI));',
+      ' float lat=asin(clamp(d.y,-1.0,1.0));',
+      ' float ty=0.5+lat/PI;',                      // equirectangular: image row from elevation
+      ' vec3 c=texture2D(map,vec2(u,ty)).rgb;',
+      // seam blend: shift each side toward the other near the left/right edge (colour only, no pixels moved)
+      ' if(seam>0.5){ vec3 j=texture2D(fix,vec2(0.5,ty)).rgb*2.0-1.0; float w=0.09;',
+      '   float a=1.0-smoothstep(0.0,w,u), b=1.0-smoothstep(0.0,w,1.0-u);',
+      '   c+=j*0.5*(a*a*(3.0-2.0*a)) - j*0.5*(b*b*(3.0-2.0*b));',
+      '   float e=min(u,1.0-u); if(e<0.006){ vec3 m=0.5*(texture2D(map,vec2(0.0008,ty)).rgb+texture2D(map,vec2(0.9992,ty)).rgb); c=mix(m,c,smoothstep(0.0,0.006,e)); } }',
+      ' gl_FragColor=vec4(c,1.0);',
+      '}'].join('\n')});
+    scene.add(new THREE.Mesh(new THREE.SphereGeometry(50,72,48),mat));
+    const ptrs=new Map();let lp=0;
+    canvas.addEventListener('pointerdown',e=>{canvas.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});});
+    canvas.addEventListener('pointermove',e=>{if(!ptrs.has(e.pointerId))return;const q=ptrs.get(e.pointerId);const dx=e.clientX-q.x,dy=e.clientY-q.y;q.x=e.clientX;q.y=e.clientY;
+      if(ptrs.size===1){const k=fov/canvas.clientHeight;yaw-=dx*k;pitch=Math.max(-85,Math.min(85,pitch+dy*k));$('panohint').style.opacity=0;}
+      else if(ptrs.size===2){const [a,b]=[...ptrs.values()];const dd=Math.hypot(a.x-b.x,a.y-b.y);if(lp)fov=Math.max(35,Math.min(100,fov*lp/dd));lp=dd;}});
+    const up=e=>{ptrs.delete(e.pointerId);lp=0;};
+    canvas.addEventListener('pointerup',up);canvas.addEventListener('pointercancel',up);
+    canvas.addEventListener('wheel',e=>{e.preventDefault();fov=Math.max(35,Math.min(100,fov+e.deltaY*0.04));},{passive:false});
+    addEventListener('keydown',e=>{if(!running)return;const s=4;
+      if(e.key==='ArrowLeft')yaw-=s;else if(e.key==='ArrowRight')yaw+=s;else if(e.key==='ArrowUp')pitch=Math.min(85,pitch+s);else if(e.key==='ArrowDown')pitch=Math.max(-85,pitch-s);});
+    return true;
+  }
+  // per-row colour difference between the right edge and the left edge, measured once in the browser
+  function seamTex(img){
+    const H=256,c=document.createElement('canvas');c.width=img.width;c.height=H;const g=c.getContext('2d');
+    g.drawImage(img,0,0,img.width,H);const W=img.width,s=12;
+    const L=g.getImageData(0,0,s,H).data,Rr=g.getImageData(W-s,0,s,H).data;
+    let rows=[];for(let y=0;y<H;y++){let d=[0,0,0];for(let x=0;x<s;x++){const o=(y*s+x)*4;for(let k=0;k<3;k++)d[k]+=(Rr[o+k]-L[o+k])/s;}rows.push(d);}
+    const out=new Uint8Array(H*4);
+    for(let y=0;y<H;y++){let d=[0,0,0],n=0;for(let z=Math.max(0,y-24);z<=Math.min(H-1,y+24);z++){for(let k=0;k<3;k++)d[k]+=rows[z][k];n++;}
+      // texture row 0 = bottom of image
+      const o=(H-1-y)*4;for(let k=0;k<3;k++)out[o+k]=Math.max(0,Math.min(255,Math.round(128+d[k]/n/2)));out[o+3]=255;}
+    const t=new THREE.DataTexture(out,1,H,THREE.RGBAFormat);t.magFilter=t.minFilter=THREE.LinearFilter;t.needsUpdate=true;return t;
+  }
+  function loop(){if(!running)return;
+    const w=canvas.clientWidth,h=canvas.clientHeight;if(R.domElement.width!==Math.round(w*R.getPixelRatio())||R.domElement.height!==Math.round(h*R.getPixelRatio()))R.setSize(w,h,false);
+    cam.aspect=w/h;cam.fov=fov;cam.updateProjectionMatrix();
+    const y=yaw*Math.PI/180,p=pitch*Math.PI/180;cam.lookAt(Math.sin(y)*Math.cos(p),Math.sin(p),-Math.cos(y)*Math.cos(p));
+    R.render(scene,cam);raf=requestAnimationFrame(loop);}
+  function show(r){
+    canvas.hidden=false;$('panohint').hidden=false;$('panohint').style.opacity=1;
+    if(!window.THREE||!init()){canvas.hidden=true;vimg.hidden=false;vimg.src='img/'+r.pano+'.jpg';$('panohint').hidden=true;return;}
+    yaw=r.yaw||0;pitch=-5;fov=80;
+    const apply=t=>{mat.uniforms.map.value=t.map;mat.uniforms.fix.value=t.fix;mat.uniforms.seam.value=r.seam?1:0;};
+    if(tex[r.pano])apply(tex[r.pano]);
+    else{const img=new Image();img.onload=()=>{const m=new THREE.Texture(img);m.minFilter=THREE.LinearFilter;m.generateMipmaps=false;m.needsUpdate=true;
+        tex[r.pano]={map:m,fix:seamTex(img)};if(cur===r.pano)apply(tex[r.pano]);};img.src='img/'+r.pano+'.jpg';}
+    cur=r.pano;if(!running){running=true;loop();}
+  }
+  function stop(){running=false;cancelAnimationFrame(raf);canvas.hidden=true;$('panohint').hidden=true;cur=null;}
+  return {show,stop,state:()=>({yaw,pitch,fov}),set:(y,p,f)=>{yaw=y;pitch=p;if(f)fov=f;}};
+})();
+
+// ---------- wiring ----------
+$('fgf').onclick=()=>setFloor('gf');$('fff').onclick=()=>setFloor('ff');
+$('start').onclick=$('start2').onclick=()=>open(TOUR[0],0);
+$('vclose').onclick=close;$('pl').onclick=()=>photo(-1);$('pr').onclick=()=>photo(1);
+$('rprev').onclick=()=>room(-1);$('rnext').onclick=()=>room(1);
+addEventListener('keydown',e=>{if(!isOpen())return;
+  if(e.key==='Escape')close();else if(!items(ROOMS[ri])[pi].pano){if(e.key==='ArrowRight')photo(1);else if(e.key==='ArrowLeft')photo(-1);}});
+let sx=null;const st=$('stage');
+st.addEventListener('pointerdown',e=>{if(items(ROOMS[ri])[pi].pano||e.target.closest('.arrow'))return;sx=e.clientX;});
+st.addEventListener('pointerup',e=>{if(sx===null)return;const dx=e.clientX-sx;sx=null;if(Math.abs(dx)>45)photo(dx<0?1:-1);});
+function show2d(f){$('p2gf').setAttribute('aria-pressed',f==='gf');$('p2ff').setAttribute('aria-pressed',f==='ff');
+  $('p2img').src='img/plan-'+f+'.jpg';$('p2img').alt='2D floor plan of the '+(f==='gf'?'ground':'first')+' floor';}
+$('open2d').onclick=()=>{show2d(floor);$('plan2d').classList.add('open');$('p2close').focus();};
+$('p2gf').onclick=()=>show2d('gf');$('p2ff').onclick=()=>show2d('ff');
+$('p2close').onclick=()=>{$('plan2d').classList.remove('open');$('open2d').focus();};
+addEventListener('keydown',e=>{if(e.key==='Escape'&&$('plan2d').classList.contains('open'))$('p2close').click();});
+buildSpots();
+window.__tour={open,close,zoomTo,setFloor,pano,rooms:ROOMS};
+})();
+</script>
+</body>
+</html>
